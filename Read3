@@ -1,0 +1,71 @@
+// =================== Einstellungen ===================
+// 1) Wähle die Zielzeit (lokal in Europa/Berlin):
+const TARGET_LOCAL = "2025-12-31T23:59:59"; // YYYY-MM-DDTHH:mm:ss
+const TARGET_TZ = "Europe/Berlin";
+
+// 2) Optional: Fortschrittsbalken (von start → ziel)
+const PROGRESS_START_LOCAL = "2025-12-01T00:00:00"; // oder null, um zu deaktivieren
+// =====================================================
+
+const { DateTime } = luxon;
+
+// Hilfsfunktion: Local-Zeit in bestimmter TZ → UTC-Instant
+function fromLocalInTZToUTC(localISO, tz) {
+  return DateTime.fromISO(localISO, { zone: tz }).toUTC();
+}
+
+const targetUTC = fromLocalInTZToUTC(TARGET_LOCAL, TARGET_TZ);
+const startUTC = PROGRESS_START_LOCAL ? fromLocalInTZToUTC(PROGRESS_START_LOCAL, TARGET_TZ) : null;
+
+const el = {
+  d: document.getElementById("d"),
+  h: document.getElementById("h"),
+  m: document.getElementById("m"),
+  s: document.getElementById("s"),
+  bar: document.getElementById("bar"),
+  tzName: document.getElementById("tz-name"),
+  startLocal: document.getElementById("start-local")
+};
+
+// Anzeige der Zielzeit in der Ziel-Zeitzone
+el.tzName.textContent = TARGET_TZ;
+el.startLocal.textContent = DateTime.fromISO(TARGET_LOCAL, { zone: TARGET_TZ })
+  .toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS);
+
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+function tick() {
+  const nowUTC = DateTime.utc();
+  const diff = targetUTC.diff(nowUTC, ["days","hours","minutes","seconds"]).toObject();
+
+  if (diff.seconds <= -0.5) {
+    el.d.textContent = "0"; el.h.textContent = "0"; el.m.textContent = "0"; el.s.textContent = "0";
+    if (el.bar) el.bar.style.width = "100%";
+    document.title = "🚀 Los geht’s!";
+    return;
+  }
+
+  const days = Math.floor(diff.days ?? 0);
+  const hours = Math.floor(diff.hours ?? 0);
+  const minutes = Math.floor(diff.minutes ?? 0);
+  const seconds = Math.floor(diff.seconds ?? 0);
+
+  el.d.textContent = String(days);
+  el.h.textContent = String(hours);
+  el.m.textContent = String(minutes);
+  el.s.textContent = String(seconds);
+
+  // Fortschrittsbalken
+  if (el.bar && startUTC) {
+    const total = targetUTC.toMillis() - startUTC.toMillis();
+    const done = nowUTC.toMillis() - startUTC.toMillis();
+    const pct = clamp((done / total) * 100, 0, 100);
+    el.bar.style.width = ${isFinite(pct) ? pct : 0}%;
+  }
+
+  // Nettes Detail: Title live updaten
+  document.title = ⏳ ${days}T ${hours}h ${minutes}m ${seconds}s;
+}
+
+tick();
+setInterval(tick, 1000);
